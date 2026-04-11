@@ -4,6 +4,7 @@ import json
 import os
 import logging
 import time
+from tqdm import tqdm
 from secrets import YD_TOKEN
 
 GROUP = 'group_148'
@@ -13,7 +14,7 @@ LOG_DIR = 'log'
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_FILE = os.path.join(LOG_DIR, f'log_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
 
-# Настройка корневого логгера
+# Настройка логгера
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -96,15 +97,25 @@ class CatImage():
         response = requests.get(url, params=params, headers=headers)
         upload_link = response.json()['href']
 
+        # Получаем размер файла для прогресс-бара
+        file_size = os.path.getsize(self.local_filename)
+
+        # Загружаем файл с прогресс-баром
         with open(self.local_filename, 'rb') as f:
-            response = requests.put(upload_link, files={'file': f})
-            if response.status_code == 201:
-                logger.info(f'Файл "{self.filename}" успешно загружен на Яндекс.Диск в папку "{self.group}"')
-                # После успешной загрузки удаляем локальный файл
-                self.del_image()
-            else:
-                logger.error(
-                    f'Файл "{self.filename}" не удалось загрузить на Яндекс.Диск, статус: {response.status_code}')
+            with tqdm(total=file_size, unit='B', unit_scale=True, desc=f'Загрузка {self.filename}') as pbar:
+                # Читаем файл частями для отображения прогресса
+                file_data = f.read()
+                pbar.update(len(file_data))
+
+                response = requests.put(upload_link, files={'file': file_data})
+
+        if response.status_code == 201:
+            logger.info(f'Файл "{self.filename}" успешно загружен на Яндекс.Диск в папку "{self.group}"')
+            # После успешной загрузки удаляем локальный файл
+            self.del_image()
+        else:
+            logger.error(
+                f'Файл "{self.filename}" не удалось загрузить на Яндекс.Диск, статус: {response.status_code}')
 
 
 def save_info_to_json(load_images_data):
