@@ -5,7 +5,7 @@ import os
 import logging
 import time
 from tqdm import tqdm
-from secrets import YD_TOKEN
+# from secrets import YD_TOKEN
 
 GROUP = 'group_148'
 
@@ -26,6 +26,26 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+
+def check_token(token):
+    headers = {'Authorization': f'OAuth {token}'}
+    url = 'https://cloud-api.yandex.net/v1/disk/'
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            logger.info("Токен успешно проверен")
+            return True
+        elif response.status_code == 401:
+            logger.error("Неверный токен Яндекс.Диска")
+            return False
+        else:
+            logger.error(f"Ошибка при проверке токена. Статус: {response.status_code}")
+            return False
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Ошибка соединения при проверке токена: {e}")
+        return False
 
 
 class CatImage():
@@ -131,12 +151,24 @@ def save_info_to_json(load_images_data):
 if __name__ == '__main__':
     logger.info(f"Лог-файл: {LOG_FILE}")
     logger.info("Программа запущена")
+    # Небольшая задержка перед выводом токена, чтобы не смешивалось с логами
+    time.sleep(0.1)
 
     load_images_data = []
-    token = YD_TOKEN
+
+    # token = YD_TOKEN
+    print('\nВведите токен Яндекс.Диска: ', end='', flush=True)
+    token = input().strip()
+    logger.info(f'Введен токен Яндекс.Диска')
+
+    # Проверяем токен перед началом работы
+    if not check_token(token):
+        logger.critical("Программа прервана: неверный токен Яндекс.Диска")
+        print("\nОШИБКА: Неверный токен Яндекс.Диска. Программа завершена.")
+        exit(1)  # Прерываем программу с кодом ошибки
 
     while True:
-        # Небольшая задержка перед выводом приглашения, чтобы не смешивалось с логами
+        # Небольшая задержка перед выводом слова, чтобы не смешивалось с логами
         time.sleep(0.1)
 
         print('\nВведите текст для картинки (для завершения введите stop или оставьте пустую строку): ', end='',
@@ -177,4 +209,5 @@ if __name__ == '__main__':
     else:
         logger.warning('Не было получено и загружено на Яндекс.Диск ни одной картинки')
 
-    logger.info("Программа завершена")
+    logger.info('Программа завершена')
+    print('Программа завершена')
